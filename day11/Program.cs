@@ -1,8 +1,5 @@
 ﻿var input = "0 7 6618216 26481 885 42 202642 8791".Split(' ').Select(long.Parse).ToArray();
 
-var memo = new Dictionary<int, Dictionary<long, IEnumerable<long>>>();
-Enumerable.Range(0, 75+1).ToList().ForEach(n => memo.Add(n, []));
-
 IEnumerable<long> SingleValue(long i)
 {
     if (i == 0) return [1];
@@ -17,41 +14,35 @@ IEnumerable<long> SingleValue(long i)
     return [long.Parse(left), long.Parse(right)];
 }
 
-IEnumerable<long> SingleValueMemo(long i)
+long Iterate(Dictionary<long, long> counts, int n)
 {
-    if (i == 0) return [1];
-    var m = memo[0];
-    if (!m.TryGetValue(i, out var values))
+    if (n == 0)
     {
-        values = SingleValue(i).ToArray();
-        m.Add(i, values);
+        return counts.Values.Sum();
     }
 
-    return values;
-}
+    var next = new Dictionary<long, long>();
 
-IEnumerable<long> IterateSingle(long val, int n)
-{
-    if (n == 0) return [val];
-
-    var m = memo[n];
-    if (!m.TryGetValue(val, out var values))
+    foreach (var (k, v) in counts)
     {
-        values = IterateSingle(val, n - 1).SelectMany(SingleValueMemo).ToArray();
-        m.Add(val, values);
+        foreach (var i in SingleValue(k))
+        {
+            if (!next.ContainsKey(i))
+            {
+                next[i] = 0;
+            }
+
+            next[i] += v;
+        }
     }
 
-    return values;
+    return Iterate(next, n - 1);
 }
 
-IEnumerable<long> Iterate(IEnumerable<long> arr, int n)
-{
-    if (n == 0) return arr;
-    return arr.SelectMany(i => IterateSingle(i, n));
-}
+var c = input.GroupBy(v => v).ToDictionary(g => g.Key, g => (long)g.Count());
 
-var part1 = Iterate(input, 25).Count();
+var part1 = Iterate(c, 25);
 Console.WriteLine($"Part 1: {part1}");
 
-var part2 = Iterate(input, 75).Count();
+var part2 = Iterate(c, 75);
 Console.WriteLine($"Part 2: {part2}");
