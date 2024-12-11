@@ -49,10 +49,9 @@ long IteratePart2(Dictionary<long, long> counts, int n)
     return IteratePart2(next, n - 1);
 }
 
-var c = input.GroupBy(v => v).ToDictionary(g => g.Key, g => (long)g.Count());
-
 var part1 = IteratePart1(input, 25).Count();
 Console.WriteLine($"Part 1: {part1}");
 
+var c = input.GroupBy(v => v).ToDictionary(g => g.Key, g => (long)g.Count());
 var part2 = IteratePart2(c, 75);
 Console.WriteLine($"Part 2: {part2}");
