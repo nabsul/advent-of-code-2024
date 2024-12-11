@@ -14,7 +14,17 @@ IEnumerable<long> SingleValue(long i)
     return [long.Parse(left), long.Parse(right)];
 }
 
-long Iterate(Dictionary<long, long> counts, int n)
+IEnumerable<long> IteratePart1(IEnumerable<long> input, int n)
+{
+    if (n == 0)
+    {
+        return input;
+    }
+
+    return IteratePart1(input.SelectMany(SingleValue), n - 1);
+}
+
+long IteratePart2(Dictionary<long, long> counts, int n)
 {
     if (n == 0)
     {
@@ -36,13 +46,13 @@ long Iterate(Dictionary<long, long> counts, int n)
         }
     }
 
-    return Iterate(next, n - 1);
+    return IteratePart2(next, n - 1);
 }
 
 var c = input.GroupBy(v => v).ToDictionary(g => g.Key, g => (long)g.Count());
 
-var part1 = Iterate(c, 25);
+var part1 = IteratePart1(input, 25).Count();
 Console.WriteLine($"Part 1: {part1}");
 
-var part2 = Iterate(c, 75);
+var part2 = IteratePart2(c, 75);
 Console.WriteLine($"Part 2: {part2}");
