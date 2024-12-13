@@ -29,18 +29,16 @@ public class Parser
         };
     }
 
-    private Coords Extract(string line, Regex regex)
+    private Point Extract(string line, Regex regex)
     {
         var match = regex.Match(line);
         if (!match.Success)
         {
             throw new Exception($"Invalid line: {line} does not match {regex}");
         }
-        
-        return new Coords
-        {
-            X = int.Parse(match.Groups[1].Value),
-            Y = int.Parse(match.Groups[2].Value)
-        };
+
+        var x = long.Parse(match.Groups[1].Value);
+        var y = long.Parse(match.Groups[2].Value);
+        return new Point(x, y);        
     }
 }
