@@ -9,6 +9,9 @@ public class PathSolver(Map map)
 
     long BestScore = long.MaxValue;
     long Spots = 0;
+    Point start = (0, 0);
+    Point end = (0, 0);
+
 
     public static void Solve(string file)
     {
@@ -19,43 +22,13 @@ public class PathSolver(Map map)
         Console.WriteLine($"{file}: {solver.BestScore} - {solver.Spots}");
     }
 
-    HashSet<Point> spots = [];
-    HashSet<Point> visited = [];
-
-    void CountSpots()
-    {
-        CountSpots(start, (0, 1), 0);
-        Spots = spots.Count;
-    }
-
-    bool CountSpots(Point p, Point dir, long score)
-    {
-        if (score > BestScore || visited.Contains(p)) return false;
-
-        if (p == end)
-        {
-            spots.Add(p);
-            return true;
-        }
-
-        var res = false;
-        res = res || CountSpots(Add(p, dir), dir, score + StepScore);
-        dir = Rotate(dir);
-        res = res || CountSpots(Add(p, dir), dir, score + TurnScore + StepScore);
-        dir = Flip(dir);
-        res = res || CountSpots(Add(p, dir), dir, score + TurnScore + StepScore);
-
-        if (res) spots.Add(p);
-        return res;        
-    }
+    Dictionary<(Point, Point), long> scores = [];
 
     void Solve()
     {
-        BestScore = Math.Min(Start((0, 1)) - TurnScore, Start((1, 0)));
-    }
+        scores[(start, (0, 1))] = 0;
 
-    Point start = (0, 0);
-    Point end = (0, 0);
+    }
 
     long Start(Point dir)
     {
