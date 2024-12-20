@@ -4,6 +4,7 @@ void Solve(string file)
 {
     var map = ParseMap(file);
     var end = FindChar(map, 'E');
+    var start = FindChar(map, 'S');
 
     var dist = FillDistances(map, end);
     foreach (var i in Enumerable.Range(0, map.GetLength(0)))
@@ -15,7 +16,7 @@ void Solve(string file)
         Console.WriteLine();
     }
 
-    var cheats = GetCheats();
+    var cheats = GetCheats(start, dist);
     Console.WriteLine("Solutions for {0}", file);
     foreach (var (key, val) in cheats.OrderBy(c => c.Key))
     {
@@ -26,12 +27,9 @@ void Solve(string file)
 int[,] FillDistances(char[,] map, (int, int) start)
 {
     var res = new int[map.GetLength(0), map.GetLength(1)];
-    foreach (var i in Enumerable.Range(0, map.GetLength(0)))
+    foreach (var (i, j) in Scan(map))
     {
-        foreach (var j in Enumerable.Range(0, map.GetLength(1)))
-        {
-            res[i, j] = int.MaxValue;
-        }
+        res[i, j] = int.MaxValue;
     }
     res[start.Item1, start.Item2] = 0;
     var q = new Queue<(int, int)>();
@@ -54,17 +52,39 @@ int[,] FillDistances(char[,] map, (int, int) start)
 
 bool TrySetDistance(char[,] map, int[,] dist, int x, int y, int val)
 {
-    if (x < 0 || x >= map.GetLength(0) || y < 0 || y >= map.GetLength(1)) return false;
+    if (!InBounds(map, x, y)) return false;
     if (map[x, y] == '#') return false;
     if (dist[x, y] <= val) return false;
     dist[x, y] = val;
     return true;
 }
 
-Dictionary<int, int> GetCheats()
+Dictionary<int, int> GetCheats((int, int) start, int[,] dist)
 {
-    var res = new Dictionary<int, int>() { { 1, 1 }, { 2, 2 }, { 3, 3 } };
+    var res = new Dictionary<int, int>() {};
+    var q = new Queue<(int, int)>();
+    q.Enqueue(start);
+    while (q.Count > 0)
+    {
+        var (x, y) = q.Dequeue();
+        CheckCheats(res, dist, x, y);
+    }
     return res;
+}
+
+void CheckCheats(Dictionary<int, int> res, int[,] dist, int x, int y)
+{
+    foreach (var (dx, dy) in new[] { (0, 1), (0, -1), (1, 0), (-1, 0) })
+    {
+        var (wx, wy) = (x + dx, y + dy);
+        if (!InBounds(dist, wx, wy) || dist[wx, wy] != int.MaxValue) continue;
+        var (px, py) = (wx + dx, wy + dy);
+        if (!InBounds(dist, px, py) || dist[px,py] == int.MaxValue) continue;
+        var saved = dist[px, py] - dist[x, y] - 2;
+        if (saved <= 0) continue;
+        if (!res.TryGetValue(saved, out var cur)) cur = 0;
+        res[saved] = cur + 1;
+    }
 }
 
 char[,] ParseMap(string file)
@@ -94,4 +114,20 @@ char[,] ParseMap(string file)
         }
     }
     throw new Exception("Char not found");
+}
+
+bool InBounds<T>(T[,] arr, int i, int j)
+{
+    return i >= 0 && i < arr.GetLength(0) && j >= 0 && j < arr.GetLength(1);
+}
+
+IEnumerable<(int, int)> Scan<T>(T[,] arr)
+{
+    for (int i = 0; i < arr.GetLength(0); i++)
+    {
+        for (int j = 0; j < arr.GetLength(1); j++)
+        {
+            yield return (i, j);
+        }
+    }
 }
