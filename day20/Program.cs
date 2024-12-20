@@ -6,6 +6,14 @@ void Solve(string file)
     var end = FindChar(map, 'E');
 
     var dist = FillDistances(map, end);
+    foreach (var i in Enumerable.Range(0, map.GetLength(0)))
+    {
+        foreach (var j in Enumerable.Range(0, map.GetLength(1)))
+        {
+            Console.Write(dist[i, j] == int.MaxValue ? "X" : (dist[i, j] % 10).ToString());
+        }
+        Console.WriteLine();
+    }
 
     var cheats = GetCheats();
     Console.WriteLine("Solutions for {0}", file);
