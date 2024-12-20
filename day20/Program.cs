@@ -1,26 +1,24 @@
-﻿Solve("test.txt");
+﻿Solve("test.txt", 2, true);
+Solve("input.txt", 2, false);
+Solve("test.txt", 50, true);
+Solve("input.txt", 50);
 
-void Solve(string file)
+void Solve(string file, int cheatTime, bool showAll = false)
 {
     var map = ParseMap(file);
     var end = FindChar(map, 'E');
     var start = FindChar(map, 'S');
 
     var dist = FillDistances(map, end);
-    foreach (var i in Enumerable.Range(0, map.GetLength(0)))
+    var cheats = GetCheats(start, dist, cheatTime);
+    var cheatCount = cheats.Where(c => c.Key >= 100).Select(c => c.Value).Sum();
+    Console.WriteLine("Solutions for {0} with cheat time {2}: {1}", file, cheatCount, cheatTime);
+    if (showAll)
     {
-        foreach (var j in Enumerable.Range(0, map.GetLength(1)))
+        foreach (var (key, val) in cheats.OrderBy(c => c.Key))
         {
-            Console.Write(dist[i, j] == int.MaxValue ? "X" : (dist[i, j] % 10).ToString());
+            Console.WriteLine(" - {0}: {1}", key, val);
         }
-        Console.WriteLine();
-    }
-
-    var cheats = GetCheats(start, dist);
-    Console.WriteLine("Solutions for {0}", file);
-    foreach (var (key, val) in cheats.OrderBy(c => c.Key))
-    {
-        Console.WriteLine(" - {0}: {1}", key, val);
     }
 }
 
@@ -52,38 +50,61 @@ int[,] FillDistances(char[,] map, (int, int) start)
 
 bool TrySetDistance(char[,] map, int[,] dist, int x, int y, int val)
 {
-    if (!InBounds(map, x, y)) return false;
+    if (!InBounds(map, (x, y))) return false;
     if (map[x, y] == '#') return false;
     if (dist[x, y] <= val) return false;
     dist[x, y] = val;
     return true;
 }
 
-Dictionary<int, int> GetCheats((int, int) start, int[,] dist)
+Dictionary<int, int> GetCheats((int, int) start, int[,] dist, int time)
 {
     var res = new Dictionary<int, int>() {};
-    var q = new Queue<(int, int)>();
-    q.Enqueue(start);
-    while (q.Count > 0)
+
+    Dictionary<int, List<(int, int)>> positions = [];
+    foreach (var (i, j) in Scan(dist))
     {
-        var (x, y) = q.Dequeue();
-        CheckCheats(res, dist, x, y);
+        var val = dist[i, j];
+        if (!positions.TryGetValue(val, out var pos))
+        {
+            positions[val] = pos = [];
+        }
+        pos.Add((i, j));
     }
+
+    for (var d = dist[start.Item1, start.Item2]; d > 0; d--)
+    {
+        foreach (var p in positions[d])
+        {
+            FindCheats(p, p, dist, res, [], time);
+        }
+    }
+
     return res;
 }
 
-void CheckCheats(Dictionary<int, int> res, int[,] dist, int x, int y)
+void FindCheats((int, int) start, (int, int) curr, int[,] dist, Dictionary<int, int> res, HashSet<(int, int)> visited, int time)
 {
+    if (time < 0 || !InBounds(dist, curr) || visited.Contains(curr)) return;
+    visited.Add(curr);
+
+    var currDist = dist[curr.Item1, curr.Item2];
+    if (currDist != int.MaxValue)
+    {
+        var startDist = dist[start.Item1, start.Item2];
+        var regDist = Math.Abs(curr.Item1 - start.Item1) + Math.Abs(curr.Item2 - start.Item2);
+        var timeSaved = currDist - startDist - regDist;
+
+        if (timeSaved > 0)
+        {
+            res[timeSaved] = res.TryGetValue(timeSaved, out var val) ? val + 1 : 1;
+        }
+    }
+
     foreach (var (dx, dy) in new[] { (0, 1), (0, -1), (1, 0), (-1, 0) })
     {
-        var (wx, wy) = (x + dx, y + dy);
-        if (!InBounds(dist, wx, wy) || dist[wx, wy] != int.MaxValue) continue;
-        var (px, py) = (wx + dx, wy + dy);
-        if (!InBounds(dist, px, py) || dist[px,py] == int.MaxValue) continue;
-        var saved = dist[px, py] - dist[x, y] - 2;
-        if (saved <= 0) continue;
-        if (!res.TryGetValue(saved, out var cur)) cur = 0;
-        res[saved] = cur + 1;
+        var next = (curr.Item1 + dx, curr.Item2 + dy);
+        FindCheats(start, next, dist, res, visited, time - 1);
     }
 }
 
@@ -116,8 +137,9 @@ char[,] ParseMap(string file)
     throw new Exception("Char not found");
 }
 
-bool InBounds<T>(T[,] arr, int i, int j)
+bool InBounds<T>(T[,] arr, (int, int) p)
 {
+    var (i, j) = p;
     return i >= 0 && i < arr.GetLength(0) && j >= 0 && j < arr.GetLength(1);
 }
 
