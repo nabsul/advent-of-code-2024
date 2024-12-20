@@ -1,9 +1,9 @@
-﻿Solve("test.txt", 2, true);
-Solve("input.txt", 2, false);
-Solve("test.txt", 50, true);
-Solve("input.txt", 50);
+﻿Solve("test.txt", 1, 2, true);
+Solve("input.txt", 100, 2, false);
+Solve("test.txt", 50, 50, true);
+Solve("input.txt", 100, 50);
 
-void Solve(string file, int cheatTime, bool showAll = false)
+void Solve(string file, int minSaving, int cheatTime, bool showAll = false)
 {
     var map = ParseMap(file);
     var end = FindChar(map, 'E');
@@ -11,11 +11,11 @@ void Solve(string file, int cheatTime, bool showAll = false)
 
     var dist = FillDistances(map, end);
     var cheats = GetCheats(start, dist, cheatTime);
-    var cheatCount = cheats.Where(c => c.Key >= 100).Select(c => c.Value).Sum();
+    var cheatCount = cheats.Where(c => c.Key >= minSaving).Select(c => c.Value).Sum();
     Console.WriteLine("Solutions for {0} with cheat time {2}: {1}", file, cheatCount, cheatTime);
     if (showAll)
     {
-        foreach (var (key, val) in cheats.OrderBy(c => c.Key))
+        foreach (var (key, val) in cheats.Where(c => c.Key >= minSaving).OrderBy(c => c.Key))
         {
             Console.WriteLine(" - {0}: {1}", key, val);
         }
@@ -72,7 +72,7 @@ Dictionary<int, int> GetCheats((int, int) start, int[,] dist, int time)
         pos.Add((i, j));
     }
 
-    for (var d = dist[start.Item1, start.Item2]; d > 0; d--)
+    for (var d = dist[start.Item1, start.Item2]; d > 2; d--)
     {
         foreach (var p in positions[d])
         {
@@ -93,7 +93,7 @@ void FindCheats((int, int) start, (int, int) curr, int[,] dist, Dictionary<int, 
     {
         var startDist = dist[start.Item1, start.Item2];
         var regDist = Math.Abs(curr.Item1 - start.Item1) + Math.Abs(curr.Item2 - start.Item2);
-        var timeSaved = currDist - startDist - regDist;
+        var timeSaved = startDist - currDist - regDist;
 
         if (timeSaved > 0)
         {
