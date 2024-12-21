@@ -38,7 +38,7 @@ void Exec(ComputerState c)
     void Adv(long op) => c.A /= (long)Math.Pow(2, ComboVal(op));
     void Bxl(long op) => c.B ^= op;
     void Bst(long op) => c.B = ComboVal(op) % 8;
-    void Jnz(long op) => c.Pos = c.A != 0 ? op : c.Pos;
+    void Jnz(long op) => c.Pos = c.A != 0 ? (int)op : c.Pos;
     void Bxc(long _) => c.B ^= c.C;
     void Out(long op)
     {
@@ -72,15 +72,15 @@ ComputerState Parse(string file)
     var b = long.Parse(lines[1].Split(": ")[1]);
     var c = long.Parse(lines[2].Split(": ")[1]);
     var code = lines[4].Split(": ")[1].Split(',').Select(long.Parse).ToArray();
-    return new ComputerState { A = a, B = b, C = c, Code = code };
+    return new ComputerState(a, b, c, code);
 }
 
-class ComputerState
+class ComputerState(long a, long b, long c, long[] code)
 {
-    public long Pos { get; set; }
-    public long A { get; set; }
-    public long B { get; set; }
-    public long C { get; set; }
-    public long[] Code { get; set; } = [];
-    public List<long> Outputs { get; set; } = [];
+    public int Pos { get; set; } = 0;
+    public long A { get; set; } = a;
+    public long B { get; set; } = b;
+    public long C { get; set; } = c;
+    public long[] Code { get; } = code;
+    public List<long> Outputs { get; } = [];
 }
