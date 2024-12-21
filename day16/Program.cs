@@ -41,20 +41,31 @@ IEnumerable<(int, int)> ListAllPathBlocks((int, int) start, (int, int) end, int 
 
 IEnumerable<(int, int)> ListSinglePathBlocks((int, int) p, (int, int) d, Dictionary<((int, int), (int, int)), int> scores)
 {
-    if (p == (0, 0)) return [];
+    IEnumerable<(int, int)> res = [p];
+    if (p == (0, 0)) return res;
 
     var score = scores[(p, d)];
-    return TryNeighbor(p, d, score + StepScore, scores)
-        .Concat(TryNeighbor(p, Rotate1(d), score + StepScore + TurnScore, scores))
-        .Concat(TryNeighbor(p, Rotate2(d), score + StepScore + TurnScore, scores))
-        .Append(p);
-}
 
-IEnumerable<(int, int)> TryNeighbor((int, int) p, (int, int) d, int score, Dictionary<((int, int), (int, int)), int> scores)
-{
-    var pos = Add(p, Flip(d));
-    if (!scores.TryGetValue((pos, d), out var nextScore) || nextScore != score) yield break;
-    yield return pos;
+    var p1 = Add(p, Flip(d));
+    var d1 = Rotate1(d);
+    var d2 = Rotate2(d);
+
+    if (scores.TryGetValue((p1, d), out var moveScore) && moveScore == score - StepScore)
+    {
+        res = res.Concat(ListSinglePathBlocks(p1, d, scores));
+    }
+
+    if (scores.TryGetValue((p, d1), out var turnScore) && turnScore == score - TurnScore)
+    {
+        res = res.Concat(ListSinglePathBlocks(p, d1, scores));
+    }
+
+    if (scores.TryGetValue((p, d2), out turnScore) && turnScore == score - TurnScore)
+    {
+        res = res.Concat(ListSinglePathBlocks(p, d2, scores));
+    }
+
+    return res;
 }
 
 Dictionary<((int, int), (int, int)), int> FillScores((int, int) start, HashSet<(int, int)> blocked)
