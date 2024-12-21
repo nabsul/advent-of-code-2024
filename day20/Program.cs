@@ -1,4 +1,6 @@
-﻿Solve("test.txt", 1, 2, true);
+﻿var dirs = new[] { (0, 1), (0, -1), (1, 0), (-1, 0) };
+
+Solve("test.txt", 1, 2, true);
 Solve("input.txt", 100, 2, false);
 Solve("test.txt", 50, 50, true);
 Solve("input.txt", 100, 50);
@@ -60,24 +62,23 @@ bool TrySetDistance(char[,] map, int[,] dist, int x, int y, int val)
 Dictionary<int, int> GetCheats((int, int) start, int[,] dist, int time)
 {
     var res = new Dictionary<int, int>() {};
+    (int, int)[] positions = [start];
 
-    Dictionary<int, List<(int, int)>> positions = [];
-    foreach (var (i, j) in Scan(dist))
+    while (positions.Length > 0)
     {
-        var val = dist[i, j];
-        if (!positions.TryGetValue(val, out var pos))
-        {
-            positions[val] = pos = [];
-        }
-        pos.Add((i, j));
-    }
+        var next = Enumerable.Empty<(int, int)>();
 
-    for (var d = dist[start.Item1, start.Item2]; d > 2; d--)
-    {
-        foreach (var p in positions[d])
+        foreach (var p in positions)
         {
+            var currVal = dist[p.Item1, p.Item2];
             FindCheats(p, p, dist, res, [], time);
+            var q = from d in dirs select Add(p, d) into n
+                    where InBounds(dist, n) && dist[n.Item1, n.Item2] == currVal - 1
+                    select n;
+            next = next.Concat(q);
         }
+
+        positions = [.. next];
     }
 
     return res;
@@ -85,7 +86,7 @@ Dictionary<int, int> GetCheats((int, int) start, int[,] dist, int time)
 
 void FindCheats((int, int) start, (int, int) curr, int[,] dist, Dictionary<int, int> res, HashSet<(int, int)> visited, int time)
 {
-    if (time < 0 || !InBounds(dist, curr) || visited.Contains(curr)) return;
+    if (time < 0) return;
     visited.Add(curr);
 
     var currDist = dist[curr.Item1, curr.Item2];
@@ -101,10 +102,13 @@ void FindCheats((int, int) start, (int, int) curr, int[,] dist, Dictionary<int, 
         }
     }
 
-    foreach (var (dx, dy) in new[] { (0, 1), (0, -1), (1, 0), (-1, 0) })
+    var neighbors = from d in dirs select Add(curr, d) into n
+                    where InBounds(dist, n) && !visited.Contains(n)
+                    select n;
+
+    foreach (var n in neighbors)
     {
-        var next = (curr.Item1 + dx, curr.Item2 + dy);
-        FindCheats(start, next, dist, res, visited, time - 1);
+        FindCheats(start, n, dist, res, visited, time - 1);
     }
 }
 
@@ -141,6 +145,11 @@ bool InBounds<T>(T[,] arr, (int, int) p)
 {
     var (i, j) = p;
     return i >= 0 && i < arr.GetLength(0) && j >= 0 && j < arr.GetLength(1);
+}
+
+(int, int) Add((int, int) a, (int, int) b)
+{
+    return (a.Item1 + b.Item1, a.Item2 + b.Item2);
 }
 
 IEnumerable<(int, int)> Scan<T>(T[,] arr)
