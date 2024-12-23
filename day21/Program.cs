@@ -1,29 +1,34 @@
 ﻿using System.Text;
 
 var debug = true;
+const char PRESS = 'A';
+const char UP = '^';
+const char DOWN = 'v';
+const char LEFT = '<';
+const char RIGHT = '>';
 var keyPad1 = ReadKeyPad("keypad1.txt");
 var keyPad2 = ReadKeyPad("keypad2.txt");
 Dictionary<char, (int, int)> dirs = new ()
 {
-    ['^'] = (-1, 0),
-    ['v'] = (1, 0),
-    ['<'] = (0, -1),
-    ['>'] = (0, 1),
+    [UP] = (-1, 0),
+    [DOWN] = (1, 0),
+    [LEFT] = (0, -1),
+    [RIGHT] = (0, 1),
 };
 
-//Solve("test1.txt");
+Solve("test1.txt", 2);
 //Console.WriteLine();
-Reverse("<v<A>>^AvA^A<vA<AA>>^AAvA<^A>AAvA^A<vA>^AA<A>A<v<A>A>^AAAvA<^A>A");
-Reverse("v<<A>>^AvA^Av<<A>>^AAv<A<A>>^AAvAA^<A>Av<A>^AA<A>Av<A<A>>^AAAvA^<A>A");
-//Solve("input.txt");
+//Reverse("v<<A>>^AvA^Av<<A>>^AAv<A<A>>^AAvAA^<A>Av<A>^AA<A>Av<A<A>>^AAAvA^<A>A");
+Solve("input.txt", 2);
+//Solve("input.txt", 25);
 
-void Solve(string file)
+void Solve(string file, int numLayers)
 {
     Console.WriteLine($"Solving {file}");
     var totalScore = 0;
     foreach (var line in File.ReadAllLines(file))
     {
-        var sequence = string.Join("", GenerateKeys(line));
+        var sequence = GetShortestKeys(line, numLayers);
         var val = int.Parse(line[..^1]);
         var score = sequence.Length * val;
         totalScore += score;
@@ -32,43 +37,66 @@ void Solve(string file)
     Console.WriteLine($"Total score: {totalScore}");
 }
 
-IEnumerable<char> GenerateKeys(string line)
+string GetShortestKeys(string line, int numLayers)
 {
-    if (debug) Console.WriteLine($"Generating keys for {line}");
-    line = GenerateSequence(line, keyPad1); // to robot 1
-    if (debug) Console.WriteLine($"Robot 1: {line}");
-    line = GenerateSequence(line, keyPad2); // to robot 2
-    if (debug) Console.WriteLine($"Robot 2: {line}");
-    line = GenerateSequence(line, keyPad2); // to human
-    if (debug) Console.WriteLine($"Human: {line}");
-    return line;
+    return GenerateKeys(line, numLayers).OrderBy(x => x.Length).First();
 }
 
-string GenerateSequence(string line, Dictionary<char, (int, int)> keyPad)
+IEnumerable<string> GenerateKeys(string line, int numLayers)
 {
-    var res = Enumerable.Empty<char>();
+    var start = GenerateSequences(line, keyPad1); // num keys
+    while (numLayers-- > 0)
+    {
+        start = start.SelectMany(l => GenerateSequences(l, keyPad2)); // to robot N
+    }
+    return start;
+}
+
+IEnumerable<string> GenerateSequences(string line, Dictionary<char, (int, int)> keyPad)
+{
+    var validPositions = keyPad.Values.ToHashSet();
+    IEnumerable<string> res = [""];
     var pos = keyPad['A'];
     foreach (var c in line)
     {
         var newPos = keyPad[c];
-        res = res.Concat(PressButton(pos, newPos, c));
+        var vals = MoveTo(pos, newPos, keyPad, validPositions).ToArray();
+        res = res.SelectMany(p => vals.Select(v => p + v + PRESS));
         pos = newPos;
     }
 
-    return string.Join("", res);
+    return res;
 }
 
-IEnumerable<char> PressButton((int, int) pos1, (int, int) pos2, char c)
+IEnumerable<string> MoveTo((int, int) pos1, (int, int) pos2, Dictionary<char, (int, int)> keys, HashSet<(int, int)> validPositions)
 {
-    var res = Enumerable.Empty<char>();
     var (i, j) = Diff(pos2, pos1);
-    if (j > 0) res = res.Concat(Enumerable.Repeat('>', j));
-    if (i > 0) res = res.Concat(Enumerable.Repeat('v', i));
-    if (i < 0) res = res.Concat(Enumerable.Repeat('^', -i));
-    if (j < 0) res = res.Concat(Enumerable.Repeat('<', -j));
-    res = res.Append('A');
+    Dictionary<char, int> moves = [];
+    if (j > 0) moves[RIGHT] = j;
+    if (i > 0) moves[DOWN] = i;
+    if (i < 0) moves[UP] = -i;
+    if (j < 0) moves[LEFT] = -j;
 
-    return res;
+    var vals = moves.Select(p => string.Join("", Enumerable.Repeat(p.Key, p.Value))).ToArray();
+
+    if (moves.Count == 0) return [""];
+    if (moves.Count == 1) return vals;
+
+    if (moves.Count != 2) throw new Exception("Invalid move count");
+
+    vals = [vals[0] + vals[1], vals[1] + vals[0]];
+    return vals.Where(v => IsValidPath(v, pos1, validPositions));
+}
+
+bool IsValidPath(string path, (int, int) start, HashSet<(int, int)> keys)
+{
+    var pos = start;
+    foreach (var c in path)
+    {
+        pos = Add(pos, dirs[c]);
+        if (!keys.Contains(pos)) return false;
+    }
+    return true;
 }
 
 Dictionary<char, (int, int)> ReadKeyPad(string file)
@@ -101,24 +129,25 @@ void Reverse(string line)
     Console.WriteLine($"Robot 1: {line}");
     line = Expand(line, keyPad1);
     Console.WriteLine($"Result: {line}");
-}
 
-string Expand(string line, Dictionary<char, (int, int)> keyPad)
-{
-    var res = new StringBuilder();
-    var pos = keyPad['A'];
-    foreach (var c in line)
+    string Expand(string line, Dictionary<char, (int, int)> keyPad)
     {
-        if (c != 'A')
+        var res = new StringBuilder();
+        var pos = keyPad['A'];
+        foreach (var c in line)
         {
-            var d = dirs[c];
-            pos = Add(pos, d);
-            continue;
+            if (c != 'A')
+            {
+                var d = dirs[c];
+                pos = Add(pos, d);
+                continue;
+            }
+
+            var val = keyPad.First(x => x.Value == pos).Key;
+            res.Append(val);
         }
 
-        var val = keyPad.First(x => x.Value == pos).Key;
-        res.Append(val);
+        return res.ToString();
     }
-
-    return res.ToString();
 }
+
