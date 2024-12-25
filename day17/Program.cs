@@ -1,9 +1,14 @@
-﻿Run("test.txt");
+﻿const long MAX_SCAN = 1 << 8;
+
+Run("test.txt");
 Decompile("test.txt");
 Run("test2.txt");
 Decompile("test2.txt");
 Run("input.txt");
 Decompile("input.txt");
+
+Run2("test2.txt");
+Run2("input.txt");
 
 void Run(string file)
 {
@@ -12,10 +17,17 @@ void Run(string file)
     Console.WriteLine($"Program {file} output: {string.Join(",", output)}\n");
 }
 
+void Run2(string file)
+{
+    var (ops, a, b, c) = Parse(file);
+    var output = FindRegisterValues(ops).First();
+    Console.WriteLine($"Program {file} register fix: {string.Join(",", output)}\n");
+}
+
 IEnumerable<long> RunProgram(long[] ops, long a, long b, long c)
 {
-    Console.WriteLine($"Running program with a={a} ({Convert.ToString(a, 2)}), b={b} ({Convert.ToString(b, 2)}), c={c} ({Convert.ToString(c, 2)})");
-    Console.WriteLine($"Program: {string.Join(",", ops)}");
+    //Console.WriteLine($"Running program with a={a} ({Convert.ToString(a, 2)}), b={b} ({Convert.ToString(b, 2)}), c={c} ({Convert.ToString(c, 2)})");
+    //Console.WriteLine($"Program: {string.Join(",", ops)}");
     var pos = 0;
     var comboVals = new long[] { 0, 1, 2, 3, a, b, c };
 
@@ -42,6 +54,44 @@ IEnumerable<long> RunProgram(long[] ops, long a, long b, long c)
         }
     }
 }
+
+IEnumerable<long> FindRegisterValues(long[] ops, int idx = 0)
+{
+    if (idx == ops.Length - 1)
+    {
+        foreach (var val in FindFirstValues(ops, 0))
+        {
+            yield return val;
+        }
+        yield break;
+    } 
+
+    var target = ops[idx];
+    foreach (var val in FindRegisterValues(ops, idx + 1))
+    {
+
+        foreach (var test in Enumerable.Range(0, 8))
+        {
+            var newVal = (val << 3) + test;
+            if (target == RunProgram(ops, newVal, 0, 0).First())
+            {
+                yield return newVal;
+            }
+        }
+    }
+}
+
+IEnumerable<long> FindFirstValues(long[] ops, long target)
+{
+    long a = 0;
+    while (a < MAX_SCAN)
+    {
+        var output = RunProgram(ops, a, 0, 0).ToArray();
+        if (output.Length == 1 && output[0] == target) yield return a;
+        a++;        
+    }
+}
+
 
 void Decompile(string file)
 {
