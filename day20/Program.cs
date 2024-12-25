@@ -1,9 +1,9 @@
 ﻿var dirs = new[] { (0, 1), (0, -1), (1, 0), (-1, 0) };
 
-Solve("test.txt", 1, 2, true);
+Solve("test.txt", 1, 2, false);
 Solve("input.txt", 100, 2, false);
-Solve("test.txt", 50, 50, true);
-Solve("input.txt", 100, 50);
+Solve("test.txt", 50, 20, true);
+Solve("input.txt", 100, 20, false);
 
 void Solve(string file, int minSaving, int cheatTime, bool showAll = false)
 {
@@ -12,9 +12,11 @@ void Solve(string file, int minSaving, int cheatTime, bool showAll = false)
     var start = FindChar(map, 'S');
 
     var dist = FillDistances(map, end);
-    var cheats = GetCheats(start, dist, cheatTime);
-    var cheatCount = cheats.Where(c => c.Key >= minSaving).Select(c => c.Value).Sum();
-    Console.WriteLine("Solutions for {0} with cheat time {2}: {1}", file, cheatCount, cheatTime);
+    var cheats = GetCheats(map, dist, cheatTime)
+        .Where(s => s.Saved >= minSaving)
+        .GroupBy(s => s.Saved)
+        .ToDictionary(g => g.Key, g => g.Count());
+    Console.WriteLine("Solutions for {0} with cheat time {2}: {1}", file, cheats.Values.Sum(), cheatTime);
     if (showAll)
     {
         foreach (var (key, val) in cheats.Where(c => c.Key >= minSaving).OrderBy(c => c.Key))
@@ -37,51 +39,56 @@ int[,] FillDistances(char[,] map, (int, int) start)
 
     while (q.Count > 0)
     {
-        var (x, y) = q.Dequeue();
-        foreach (var (dx, dy) in new[] { (0, 1), (0, -1), (1, 0), (-1, 0) })
+        var p0 = q.Dequeue();
+        foreach (var d in new[] { (0, 1), (0, -1), (1, 0), (-1, 0) })
         {
-            if (TrySetDistance(map, res, x + dx, y + dy, res[x, y] + 1))
-            {
-                q.Enqueue((x + dx, y + dy));
-            }
-        }
+            var p1 = Add(p0, d);
+            var val = Get(res, p0) + 1;
+            if (!InBounds(map, p1) || Get(map, p1) == '#' || val > Get(res, p1)) continue;
+            Set(res, p1, val);
+            q.Enqueue(p1);
+       }
     }
 
     return res;
 }
 
-bool TrySetDistance(char[,] map, int[,] dist, int x, int y, int val)
+IEnumerable<((int, int) Start, (int, int) End, int Saved)> GetCheats(char[,] map, int[,] dist, int time)
 {
-    if (!InBounds(map, (x, y))) return false;
-    if (map[x, y] == '#') return false;
-    if (dist[x, y] <= val) return false;
-    dist[x, y] = val;
-    return true;
-}
-
-Dictionary<int, int> GetCheats((int, int) start, int[,] dist, int time)
-{
-    var res = new Dictionary<int, int>() {};
-    (int, int)[] positions = [start];
-
-    while (positions.Length > 0)
+    foreach (var p in Scan(map))
     {
-        var next = Enumerable.Empty<(int, int)>();
-
-        foreach (var p in positions)
+        var c = Get(map, p);
+        if (c == 'E' || c == '#') continue;
+        foreach (var cheat in GetCheatSavings(p, map, dist, time))
         {
-            var currVal = dist[p.Item1, p.Item2];
-            FindCheats(p, p, dist, res, [], time);
-            var q = from d in dirs select Add(p, d) into n
-                    where InBounds(dist, n) && dist[n.Item1, n.Item2] == currVal - 1
-                    select n;
-            next = next.Concat(q);
+            yield return cheat;
         }
-
-        positions = [.. next];
     }
+}
 
-    return res;
+IEnumerable<((int, int) Start, (int, int) End, int Saved)> GetCheatSavings((int, int) start, char[,] map, int[,] dist, int time)
+{
+    foreach (var p in GetAllSurrounding(start, time))
+    {
+        if (!InBounds(dist, p)) continue;
+        if (Get(map, p) == '#') continue;
+        if (Get(dist, p) == int.MaxValue) continue;
+        var saved = Get(dist, start) - Get(dist, p) - Dist(start, p);
+        if (saved <= 0) continue;
+        yield return (start, p, saved);
+    }
+}
+
+IEnumerable<(int, int)> GetAllSurrounding((int, int) p, int d)
+{
+    foreach (var i in Enumerable.Range(1, d))
+    foreach (var j in Enumerable.Range(0, i))
+    {
+        yield return Add(p, (i-j, j));
+        yield return Add(p, (j-i, -j));
+        yield return Add(p, (-j, i-j));
+        yield return Add(p, (j, j-i));
+    }
 }
 
 void FindCheats((int, int) start, (int, int) curr, int[,] dist, Dictionary<int, int> res, HashSet<(int, int)> visited, int time)
@@ -147,10 +154,10 @@ bool InBounds<T>(T[,] arr, (int, int) p)
     return i >= 0 && i < arr.GetLength(0) && j >= 0 && j < arr.GetLength(1);
 }
 
-(int, int) Add((int, int) a, (int, int) b)
-{
-    return (a.Item1 + b.Item1, a.Item2 + b.Item2);
-}
+(int, int) Add((int, int) a, (int, int) b) => (a.Item1 + b.Item1, a.Item2 + b.Item2);
+int Dist((int, int) a, (int, int) b) => Math.Abs(a.Item1 - b.Item1) + Math.Abs(a.Item2 - b.Item2);
+T Get<T>(T[,] arr, (int, int) p) => arr[p.Item1, p.Item2];
+void Set<T>(T[,] arr, (int, int) p, T val) => arr[p.Item1, p.Item2] = val;
 
 IEnumerable<(int, int)> Scan<T>(T[,] arr)
 {
