@@ -1,13 +1,12 @@
-﻿using System.Text;
-
-var debug = true;
-const char PRESS = 'A';
+﻿const char PRESS = 'A';
 const char UP = '^';
 const char DOWN = 'v';
 const char LEFT = '<';
 const char RIGHT = '>';
-var keyPad1 = ReadKeyPad("keypad1.txt");
-var keyPad2 = ReadKeyPad("keypad2.txt");
+var numPad = ReadKeyPad("keypad1.txt");
+var numPadPositions = numPad.Values.ToHashSet();
+var arrowPad = ReadKeyPad("keypad2.txt");
+var arrowPadPositions = arrowPad.Values.ToHashSet();
 Dictionary<char, (int, int)> dirs = new ()
 {
     [UP] = (-1, 0),
@@ -17,8 +16,6 @@ Dictionary<char, (int, int)> dirs = new ()
 };
 
 Solve("test1.txt", 2);
-//Console.WriteLine();
-//Reverse("v<<A>>^AvA^Av<<A>>^AAv<A<A>>^AAvAA^<A>Av<A>^AA<A>Av<A<A>>^AAAvA^<A>A");
 Solve("input.txt", 2);
 //Solve("input.txt", 25);
 
@@ -44,60 +41,87 @@ string GetShortestKeys(string line, int numLayers)
 
 IEnumerable<string> GenerateKeys(string line, int numLayers)
 {
-    var start = GenerateSequences(line, keyPad1); // num keys
-    while (numLayers-- > 0)
-    {
-        start = start.SelectMany(l => GenerateSequences(l, keyPad2)); // to robot N
-    }
-    return start;
+    return GenerateArrowMoves(GenerateNumPadMoves(line), numLayers);
 }
 
-IEnumerable<string> GenerateSequences(string line, Dictionary<char, (int, int)> keyPad)
+IEnumerable<string> GenerateArrowMoves(IEnumerable<string> lines, int numLayers)
 {
-    var validPositions = keyPad.Values.ToHashSet();
-    IEnumerable<string> res = [""];
-    var pos = keyPad['A'];
-    foreach (var c in line)
+    if (numLayers == 0)
     {
-        var newPos = keyPad[c];
-        var vals = MoveTo(pos, newPos, keyPad, validPositions).ToArray();
-        res = res.SelectMany(p => vals.Select(v => p + v + PRESS));
-        pos = newPos;
+        foreach (var line in lines)
+        {
+            yield return line;
+        }
+        yield break;
     }
 
-    return res;
+    lines = GenerateArrowMoves(lines, numLayers - 1);
+
+    foreach (var line in lines)
+    {
+        IEnumerable<string> res = [""];
+        var pos = arrowPad[PRESS];
+        foreach (var c in line)
+        {
+            var newPos = arrowPad[c];
+            var vals = MoveTo(arrowPadPositions, pos, newPos).ToArray();
+            res = res.SelectMany(p => vals.Select(v => p + v + PRESS));
+            pos = newPos;
+        }
+        foreach (var l in res) yield return l;
+    }
 }
 
-IEnumerable<string> MoveTo((int, int) pos1, (int, int) pos2, Dictionary<char, (int, int)> keys, HashSet<(int, int)> validPositions)
+IEnumerable<string> SplitArrowMoves(string line)
+{
+    var start = 0;
+    for (int i = 0; i < line.Length; i++)
+    {
+        if (line[i] == PRESS)
+        {
+            yield return line[start..i];
+            start = i + 1;
+        }
+    }
+}
+
+IEnumerable<string> GenerateNumPadMoves(string line) => GenerateNumPadMovesInner(line, numPad['A']);
+IEnumerable<string> GenerateNumPadMovesInner(string line, (int, int) pos, int idx = 0)
+{
+    if (idx == line.Length) return [""];
+
+    var c = line[idx];
+    var newPos = numPad[c];
+    return MoveTo(numPadPositions, pos, newPos)
+        .SelectMany(move => GenerateNumPadMovesInner(line, newPos, idx + 1)
+        .Select(next => move + PRESS + next));
+}
+
+IEnumerable<string> MoveTo(HashSet<(int, int)> validPositions, (int, int) pos1, (int, int) pos2)
 {
     var (i, j) = Diff(pos2, pos1);
-    Dictionary<char, int> moves = [];
-    if (j > 0) moves[RIGHT] = j;
-    if (i > 0) moves[DOWN] = i;
-    if (i < 0) moves[UP] = -i;
-    if (j < 0) moves[LEFT] = -j;
+    var moves = Enumerable.Repeat(RIGHT, j > 0 ? j : 0)
+        .Concat(Enumerable.Repeat(DOWN, i > 0 ? i : 0))
+        .Concat(Enumerable.Repeat(UP, i < 0 ? -i : 0))
+        .Concat(Enumerable.Repeat(LEFT, j < 0 ? -j : 0))
+        .ToArray();
 
-    var vals = moves.Select(p => string.Join("", Enumerable.Repeat(p.Key, p.Value))).ToArray();
+    var vals = new[] { string.Join("", moves), string.Join("", moves.Reverse()) };
+    if (vals[0] == vals[1]) return [vals[0]];
+    return vals.Where(v => IsValidPath(v));
 
-    if (moves.Count == 0) return [""];
-    if (moves.Count == 1) return vals;
-
-    if (moves.Count != 2) throw new Exception("Invalid move count");
-
-    vals = [vals[0] + vals[1], vals[1] + vals[0]];
-    return vals.Where(v => IsValidPath(v, pos1, validPositions));
-}
-
-bool IsValidPath(string path, (int, int) start, HashSet<(int, int)> keys)
-{
-    var pos = start;
-    foreach (var c in path)
+    bool IsValidPath(string path)
     {
-        pos = Add(pos, dirs[c]);
-        if (!keys.Contains(pos)) return false;
+        var pos = pos1;
+        foreach (var c in path)
+        {
+            pos = Add(pos, dirs[c]);
+            if (!validPositions.Contains(pos)) return false;
+        }
+        return true;
     }
-    return true;
 }
+
 
 Dictionary<char, (int, int)> ReadKeyPad(string file)
 {
@@ -118,36 +142,3 @@ Dictionary<char, (int, int)> ReadKeyPad(string file)
 
 (int, int) Diff((int, int) a, (int, int) b) => (a.Item1 - b.Item1, a.Item2 - b.Item2);
 (int, int) Add((int, int) a, (int, int) b) => (a.Item1 + b.Item1, a.Item2 + b.Item2);
-
-
-void Reverse(string line)
-{
-    Console.WriteLine($"Reversing {line}");
-    line = Expand(line, keyPad2);
-    Console.WriteLine($"Robot 2: {line}");
-    line = Expand(line, keyPad2);
-    Console.WriteLine($"Robot 1: {line}");
-    line = Expand(line, keyPad1);
-    Console.WriteLine($"Result: {line}");
-
-    string Expand(string line, Dictionary<char, (int, int)> keyPad)
-    {
-        var res = new StringBuilder();
-        var pos = keyPad['A'];
-        foreach (var c in line)
-        {
-            if (c != 'A')
-            {
-                var d = dirs[c];
-                pos = Add(pos, d);
-                continue;
-            }
-
-            var val = keyPad.First(x => x.Value == pos).Key;
-            res.Append(val);
-        }
-
-        return res.ToString();
-    }
-}
-
