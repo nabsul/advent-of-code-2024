@@ -14,10 +14,11 @@ Dictionary<char, (int, int)> dirs = new ()
     [LEFT] = (0, -1),
     [RIGHT] = (0, 1),
 };
+var cache = new Dictionary<string, string[]>();
 
 Solve("test1.txt", 2);
 Solve("input.txt", 2);
-//Solve("input.txt", 25);
+Solve("input.txt", 25);
 
 void Solve(string file, int numLayers)
 {
@@ -61,12 +62,14 @@ IEnumerable<string> GenerateArrowMoves(IEnumerable<string> lines, int numLayers)
     {
         IEnumerable<string> res = [""];
         var pos = arrowPad[PRESS];
-        foreach (var c in line)
+        foreach (var chunk in SplitArrowMoves(line))
         {
-            var newPos = arrowPad[c];
-            var vals = MoveTo(arrowPadPositions, pos, newPos).ToArray();
-            res = res.SelectMany(p => vals.Select(v => p + v + PRESS));
-            pos = newPos;
+            if (!cache.TryGetValue(chunk, out var vals))
+            {
+                vals = SolveSingleChunk(chunk);
+                cache.Add(chunk, vals);
+            }
+            res = res.SelectMany(p => vals.Select(v => p + v)).ToArray();
         }
         foreach (var l in res) yield return l;
     }
@@ -79,10 +82,24 @@ IEnumerable<string> SplitArrowMoves(string line)
     {
         if (line[i] == PRESS)
         {
-            yield return line[start..i];
+            yield return line[start..(i+1)];
             start = i + 1;
         }
     }
+}
+
+string[] SolveSingleChunk(string chunk)
+{
+    IEnumerable<string> res = [""];
+    var pos = arrowPad[PRESS];
+    foreach (var c in chunk)
+    {
+        var newPos = arrowPad[c];
+        var vals = MoveTo(arrowPadPositions, pos, newPos).ToArray();
+        res = res.SelectMany(p => vals.Select(v => p + v + PRESS));
+        pos = newPos;
+    }
+    return res.ToArray();
 }
 
 IEnumerable<string> GenerateNumPadMoves(string line) => GenerateNumPadMovesInner(line, numPad['A']);
