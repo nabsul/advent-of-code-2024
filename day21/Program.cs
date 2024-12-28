@@ -47,32 +47,66 @@ IEnumerable<string> GenerateKeys(string line, int numLayers)
 
 IEnumerable<string> GenerateArrowMoves(IEnumerable<string> lines, int numLayers)
 {
-    if (numLayers == 0)
-    {
-        foreach (var line in lines)
-        {
-            yield return line;
-        }
-        yield break;
-    }
-
-    lines = GenerateArrowMoves(lines, numLayers - 1);
+    var chunks = lines.SelectMany(SplitArrowMoves).Distinct().ToArray();
+    var lookup = GenerateChunkLookup(chunks, numLayers);
 
     foreach (var line in lines)
     {
         IEnumerable<string> res = [""];
-        var pos = arrowPad[PRESS];
         foreach (var chunk in SplitArrowMoves(line))
         {
-            if (!cache.TryGetValue(chunk, out var vals))
-            {
-                vals = SolveSingleChunk(chunk);
-                cache.Add(chunk, vals);
-            }
+            var vals = lookup[chunk];
             res = res.SelectMany(p => vals.Select(v => p + v)).ToArray();
         }
         foreach (var l in res) yield return l;
     }
+}
+
+Dictionary<string, string[]> GenerateChunkLookup(string[] chunks, int numLayers)
+{
+    Console.WriteLine($"Generating lookup for {numLayers} layers");
+    var res = new Dictionary<string, string[]>();
+    if (numLayers == 1)
+    {
+        foreach (var chunk in chunks)
+        {
+            res.Add(chunk, SolveSingleChunk(chunk));
+        }
+        return res;
+    }
+
+    var prev = GenerateChunkLookup(chunks, numLayers - 1);
+    chunks = prev.Values.SelectMany(v => v.SelectMany(SplitArrowMoves)).Distinct().ToArray();
+    var lookup = GenerateChunkLookup(chunks, 1);
+
+    foreach (var (key, values) in prev)
+    {
+        IEnumerable<string> final = [];
+        foreach (var val in values)
+        {
+            IEnumerable<string> part = [""];
+            foreach (var chunk in SplitArrowMoves(val))
+            {
+                var vals = lookup[chunk];
+                part = part.SelectMany(p => vals.Select(v => p + v)).ToArray();
+            }
+            final = final.Concat(part);
+        }
+        res.Add(key, final.ToArray());
+    }
+
+    return Prune(res);
+}
+
+Dictionary<string, string[]> Prune(Dictionary<string, string[]> lookup)
+{
+    var res = new Dictionary<string, string[]>();
+    foreach (var (key, values) in lookup)
+    {
+        var min = values.Min(v => v.Length);
+        res.Add(key, values.Where(v => v.Length == min).ToArray());
+    }
+    return res;
 }
 
 IEnumerable<string> SplitArrowMoves(string line)

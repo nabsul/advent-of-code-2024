@@ -1,0 +1,27 @@
+029A
+
+stage1: <A>AV<A^>AVVVA^^^AAA
+stage2: ^<<AV>>AAA^AVAAA^<AV>A^<<AV>>AAA<A>A^AVAAA^<AV>A^<AV>A^<AV>AAA<A>A<A>A<A>AAAAAAA
+stage3: <A>A^<<AV>>A^<<AV>>AAA^<AV>A^AVA^AVAAAAAAA<A>AAA^<AV>AAAAAAA<A>A^<<AV>>AAA^<AV>A^AVAAA<A>A^<<AV>>A^<<AV>>AAA^<AV>A^AVA^AVAAAAAAA^<<AV>>AAA^AVAAA<A>AAA^<AV>AAAAAAA<A>A^<<AV>>AAA^<AV>A^AVAAA<A>A^<<AV>>AAA^<AV>A^AVAAA<A>A^<<AV>>AAA^<AV>A^AVAAAAAAA^<<AV>>AAA^AVAAA^<<AV>>AAA^A
+
+
+789
+456
+123
+ 0A
+
+ ^A
+<v>
+
+
+ <A>A<AAv<AA>>^AvAA^Av<AAA>^A
+ 
+^A^^<<A>>AvvvA
+<A>A<AAv<AA>>^AvAA^Av<AAA>^A
+ 
+v<<A >>^A vA ^A v<<A >>^A Av<A<A>>^AAvAA^<A>Av<A>^AA<A>Av<A<A>>^AAAvA^<A>A
+ 
+ 
+ 
+ <A >A v<<AA
+ <v<A >>^A vA ^A <vA  <A A>>^AAvA<^A>AAvA^A<vA>^AA<A>A<v<A>A>^AAAvA<^A>A
